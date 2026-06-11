@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Bare host theme; all real styling is done in Compose.
+         windowBackground matches the dark scan screen to avoid a launch flash. -->
+    <style name="Theme.QRScanner" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/ink</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
