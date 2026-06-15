@@ -1,5 +1,13 @@
 package com.example.qrscanner.model
 
+import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Date
+import java.util.Locale
+
 /** High-level category a scanned or created payload falls into. */
 enum class ScanKind { URL, WIFI, PHONE, EMAIL, GEO, SMS, TEXT, PRODUCT }
 
@@ -50,9 +58,27 @@ data class ClassifiedScan(
 data class ScanEntry(
     val id: Long,
     val scan: ClassifiedScan,
-    val time: String,       // "10:42"
-    val dayLabel: String,   // "Today", "Yesterday" …
-)
+    val timestampMillis: Long,
+) {
+    val time: String
+        get() = timeFmt.format(Date(timestampMillis))
+
+    val dayLabel: String
+        get() = dayLabelFor(timestampMillis)
+}
+
+private val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
+private val dayDateFmt = DateTimeFormatter.ofPattern("MMM d", Locale.getDefault())
+
+fun dayLabelFor(timestampMillis: Long, zone: ZoneId = ZoneId.systemDefault()): String {
+    val date = Instant.ofEpochMilli(timestampMillis).atZone(zone).toLocalDate()
+    val today = LocalDate.now(zone)
+    return when (date) {
+        today -> "Today"
+        today.minusDays(1) -> "Yesterday"
+        else -> dayDateFmt.format(date)
+    }
+}
 
 /** Minimal WIFI: payload parser. */
 object WifiParser {

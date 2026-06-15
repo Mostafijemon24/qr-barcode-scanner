@@ -2,6 +2,7 @@ package com.example.qrscanner.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -24,6 +25,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AddPhotoAlternate
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -36,6 +39,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
@@ -46,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.qrscanner.generator.QrGenerator
 import com.example.qrscanner.ui.theme.AppColors
+import com.example.qrscanner.util.BitmapLoader
 import com.example.qrscanner.util.ImageSaver
 
 private enum class CreateType(val label: String, val fieldLabel: String, val hint: String) {
@@ -68,14 +73,25 @@ fun CreateScreen(modifier: Modifier = Modifier) {
     var type by remember { mutableStateOf(CreateType.URL) }
     var value by remember { mutableStateOf("https://mywebsite.com") }
     var menuOpen by remember { mutableStateOf(false) }
+    var logoBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
-    val qrBitmap = remember(type, value) {
-        QrGenerator.generate(type.encode(value), 512)
+    val logoPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            val loaded = BitmapLoader.fromUri(context, uri)
+            if (loaded != null) logoBitmap = loaded
+            else Toast.makeText(context, "Couldn't load image", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val qrBitmap = remember(type, value, logoBitmap) {
+        QrGenerator.generate(type.encode(value), 512, logoBitmap)
     }
 
     fun saveNow() {
         val content = type.encode(value)
-        val bmp = QrGenerator.generate(content, 1024)
+        val bmp = QrGenerator.generate(content, 1024, logoBitmap)
         if (bmp == null) {
             Toast.makeText(context, "Enter something to encode first", Toast.LENGTH_SHORT).show()
             return
@@ -197,6 +213,87 @@ fun CreateScreen(modifier: Modifier = Modifier) {
                         }
                     },
                 )
+            }
+
+            // center logo (optional)
+            Text(
+                "Center logo (optional)",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = AppColors.Text,
+            )
+            if (logoBitmap != null) {
+                Row(
+                    Modifier
+                        .padding(top = 6.dp, bottom = 16.dp)
+                        .fillMaxWidth()
+                        .background(AppColors.Card, RoundedCornerShape(12.dp))
+                        .border(1.dp, AppColors.Line, RoundedCornerShape(12.dp))
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            bitmap = logoBitmap!!.asImageBitmap(),
+                            contentDescription = "Logo preview",
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(1.dp, AppColors.Line, RoundedCornerShape(8.dp)),
+                        )
+                        Text(
+                            "Logo added",
+                            fontSize = 14.sp,
+                            color = AppColors.Text,
+                            modifier = Modifier.padding(start = 12.dp),
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            "Change",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = AppColors.Ink,
+                            modifier = Modifier
+                                .clickable { logoPicker.launch("image/*") }
+                                .padding(4.dp),
+                        )
+                        Icon(
+                            Icons.Rounded.Close,
+                            contentDescription = "Remove logo",
+                            tint = AppColors.TextDim,
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clickable { logoBitmap = null }
+                                .padding(2.dp),
+                        )
+                    }
+                }
+            } else {
+                Row(
+                    Modifier
+                        .padding(top = 6.dp, bottom = 16.dp)
+                        .fillMaxWidth()
+                        .background(AppColors.Card, RoundedCornerShape(12.dp))
+                        .border(1.dp, AppColors.Line, RoundedCornerShape(12.dp))
+                        .clickable { logoPicker.launch("image/*") }
+                        .padding(horizontal = 14.dp, vertical = 13.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Rounded.AddPhotoAlternate,
+                        contentDescription = null,
+                        tint = AppColors.TextDim,
+                        modifier = Modifier.size(22.dp),
+                    )
+                    Text(
+                        "Add logo from gallery",
+                        fontSize = 14.sp,
+                        color = AppColors.TextDim,
+                        modifier = Modifier.padding(start = 10.dp),
+                    )
+                }
             }
 
             // create button

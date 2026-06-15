@@ -22,6 +22,7 @@ import androidx.compose.material.icons.rounded.Description
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Mail
 import androidx.compose.material.icons.rounded.Place
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Sms
 import androidx.compose.material.icons.rounded.Wifi
@@ -85,7 +86,7 @@ fun HistoryScreen(vm: AppViewModel, modifier: Modifier = Modifier) {
         Column(Modifier.padding(start = 22.dp, end = 22.dp, top = 18.dp, bottom = 12.dp)) {
             Text("History", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = AppColors.Text)
             Text(
-                "Your last 24 scans are saved here",
+                "Scans from the last 7 days",
                 fontSize = 13.sp,
                 color = AppColors.TextDim,
                 modifier = Modifier.padding(top = 2.dp),
@@ -123,24 +124,63 @@ fun HistoryScreen(vm: AppViewModel, modifier: Modifier = Modifier) {
             )
         }
 
-        LazyColumn(
-            Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 22.dp, end = 22.dp, bottom = 110.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            items(rows.size) { index ->
-                when (val row = rows[index]) {
-                    is Row.Header -> Text(
-                        row.label.uppercase(),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = AppColors.TextDim,
-                        modifier = Modifier.padding(top = 8.dp, start = 2.dp),
-                    )
-                    is Row.Item -> HistoryItem(row.entry)
+        if (rows.isEmpty()) {
+            HistoryEmptyState(hasSearchQuery = query.isNotBlank())
+        } else {
+            LazyColumn(
+                Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 22.dp, end = 22.dp, bottom = 110.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                items(rows.size) { index ->
+                    when (val row = rows[index]) {
+                        is Row.Header -> Text(
+                            row.label.uppercase(),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = AppColors.TextDim,
+                            modifier = Modifier.padding(top = 8.dp, start = 2.dp),
+                        )
+                        is Row.Item -> HistoryItem(row.entry)
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun HistoryEmptyState(hasSearchQuery: Boolean) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(horizontal = 32.dp, vertical = 48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            Icons.Rounded.History,
+            contentDescription = null,
+            tint = AppColors.TextDim,
+            modifier = Modifier.size(48.dp),
+        )
+        Text(
+            if (hasSearchQuery) "No matching scans" else "No scans yet",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = AppColors.Text,
+            modifier = Modifier.padding(top = 16.dp),
+        )
+        Text(
+            if (hasSearchQuery) {
+                "Try a different search term"
+            } else {
+                "Codes you scan will appear here for 7 days"
+            },
+            fontSize = 13.sp,
+            color = AppColors.TextDim,
+            modifier = Modifier.padding(top = 6.dp),
+        )
     }
 }
 

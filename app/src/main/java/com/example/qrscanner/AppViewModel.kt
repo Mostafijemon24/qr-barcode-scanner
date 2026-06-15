@@ -1,18 +1,17 @@
 package com.example.qrscanner
 
+import android.app.Application
 import androidx.camera.core.CameraSelector
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import com.example.qrscanner.model.ClassifiedScan
 import com.example.qrscanner.model.ScanEntry
 import com.example.qrscanner.scanner.RawDetection
 import com.example.qrscanner.util.ContentClassifier
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.example.qrscanner.util.ScanHistoryStore
 
 /** Which codes the active type-chip lets through. */
 enum class ScanFilter(val label: String) {
@@ -28,7 +27,7 @@ enum class ScanFilter(val label: String) {
 }
 
 /** Holds all app state: camera controls, the active result, and scan history. */
-class AppViewModel : ViewModel() {
+class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     val history = mutableStateListOf<ScanEntry>()
 
@@ -42,11 +41,13 @@ class AppViewModel : ViewModel() {
     var zoomRatio by mutableStateOf(1f)
         private set
 
-    private var nextId = 1000L
-    private val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
+    private val historyStore = ScanHistoryStore(application)
+    private var nextId = 1L
 
     init {
-        seedHistory()
+        val loaded = historyStore.load()
+        history.addAll(loaded)
+        nextId = (loaded.maxOfOrNull { it.id } ?: 0L) + 1
     }
 
     /** True while a result sheet is showing → camera should stop reporting. */
@@ -57,14 +58,14 @@ class AppViewModel : ViewModel() {
         if (!filter.accepts(detection)) return
         val classified = ContentClassifier.classify(detection.value, detection.formatName, detection.isLinear)
         currentResult = classified
-        history.add(0, ScanEntry(nextId++, classified, timeFmt.format(Date()), "Today"))
+        addToHistory(classified)
     }
 
     /** A code picked from the gallery should show even if it is not the active filter. */
     fun onGalleryDetection(detection: RawDetection) {
         val classified = ContentClassifier.classify(detection.value, detection.formatName, detection.isLinear)
         currentResult = classified
-        history.add(0, ScanEntry(nextId++, classified, timeFmt.format(Date()), "Today"))
+        addToHistory(classified)
     }
 
     fun dismissResult() {
@@ -93,19 +94,13 @@ class AppViewModel : ViewModel() {
         }
     }
 
-    private fun seedHistory() {
-        val seeds = listOf(
-            Triple("https://example.com/offers", "10:42", "Today"),
-            Triple("WIFI:S:Office_WiFi_5G;T:WPA;P:welcome123;;", "09:15", "Today"),
-            Triple("8 941100 770023", "18:30", "Yesterday"),
-            Triple("Event ticket — Hall 3, Seat B12", "14:05", "Yesterday"),
-            Triple("https://pay.example.com/confirm", "11:20", "Yesterday"),
+    private fun addToHistory(classified: ClassifiedScan) {
+        val entry = ScanEntry(
+            id = nextId++,
+            scan = classified,
+            timestampMillis = System.currentTimeMillis(),
         )
-        seeds.forEach { (raw, time, day) ->
-            val isBarcode = raw.firstOrNull()?.isDigit() == true && raw.any { it == ' ' }
-            val format = if (isBarcode) "EAN-13" else "QR code"
-            val classified = ContentClassifier.classify(raw, format, isBarcode)
-            history.add(ScanEntry(nextId++, classified, time, day))
-        }
+        history.add(0, entry)
+        historyStore.save(history)
     }
 }
